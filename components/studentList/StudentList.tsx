@@ -2,12 +2,20 @@ import React from 'react'
 import { useState } from 'react'
 import styles from '../../styles/studentlist.module.css'
 import BUTTON from '../button/BUTTON'
+import {  db} from '../../database'
+import { addDoc , collection, query } from 'firebase/firestore'
+import { async } from '@firebase/util';
+import { updateDoc , deleteDoc } from 'firebase/firestore'
+import {doc} from 'firebase/firestore'
+import { getDocs } from 'firebase/firestore'
+import {useEffect} from 'react'
 
 type studentType = {
     name:string,
     rollno:string,
     batch:string,
     section:string,
+    id:string
 }
 
 const STUDENTLIST = () => {
@@ -21,44 +29,95 @@ const STUDENTLIST = () => {
         rollno:"23",
         batch:"BSCS",
         section:"f1",
-    },{
-        name:"Farooq",
-        rollno:"23223",
-        batch:"ICS",
-        section:"C3",
+        id:""
     }])
+    const [re,setRe] = useState("")
 
-    const submithandler=()=>{
-        const newdoc:studentType = {
-            name:name,
-            rollno:rollno,
-            batch:batch,
-            section:section,
+    useEffect(()=>{
+        gethandler();
+    },[])
+    
+    const submithandler=async()=>{
+        if(!name || !rollno || !batch || !section){
+            console.log("Error uploading document");
+            alert("Fill all the fields please!")
+        }else{
+
+            const newdoc = {
+                name:name,
+                rollno:rollno,
+                batch:batch,
+                section:section,
+                
+            }
+    
+                const docRef = await addDoc(collection(db , "students"), newdoc);
+                setStudentlist([...studentlist,{...newdoc,id:docRef.id}]);
+                setName("")
+                setRollno("")
+                setBatch("")
+                setSection("")
+                setRe("")
         }
-        setStudentlist([...studentlist , newdoc])
+        
+
     }
-    const onedithandler = (student:studentType)=>{
-        const newdoc = {
-            name:name,
-            rollno:rollno,
-            batch:batch,
-            section:section,
-        }
-        let newlist
-        newlist = studentlist.map((stu,index)=>{
+    const updatehandler = async (student:any)=>{
+    
+       
+            setName(student.name)
+            setRollno(student.rollno)
+            setBatch(student.batch)
+            setSection(student.section)
+            setRe(student.id)
+            
+            const newdoc = {
+                name:name,
+                rollno:rollno,
+                batch:batch,
+                section:section,
+                
+            };
+            await updateDoc(doc(db, "students", student.id),newdoc);
+
+        
+            
+             let newlist = studentlist.map((stu)=>{
+            
             if ( stu == student ){
-                return newdoc
+                return {...newdoc,id:re}
             }else{
                 return stu
             }
         })
         setStudentlist(newlist)
+        setName("")
+            setRollno("")
+            setBatch("")
+            setSection("")
+            setRe("")
+        console.log(studentlist);
+        
        
         
     }
-    const onremovehandler = (student:studentType)=>{
+    const onremovehandler = async(student:studentType)=>{
+        
+        await deleteDoc(doc(db, "students" , student.id));
+         
         setStudentlist(studentlist.filter(s=> s!==student))
         
+    }
+    const gethandler = async()=>{
+        const querySnapshot = await getDocs(collection(db,"students"));
+        let list:studentType[] = []
+        querySnapshot.forEach((doc)=>{list.push({
+            id:doc.id,
+            name:doc.data().name,
+            rollno:doc.data().rollno,
+            batch:doc.data().batch,
+            section:doc.data().section});});
+            setStudentlist(list);
     }
   return (
     <>
@@ -68,19 +127,19 @@ const STUDENTLIST = () => {
  
  <form>
    <div className={styles.userbox}>
-     <input type="text" name="name" onChange={(e)=>{setName(e.target.value)}}></input>
+     <input type="text" name="name" value={name} onChange={(e)=>{setName(e.target.value)}}></input>
      <label>Enter name</label>
    </div>
    <div className={styles.userbox}>
-     <input type="text" name="rollno" onChange={(e)=>{setRollno(e.target.value)}} ></input>
+     <input type="text" name="rollno" value={rollno} onChange={(e)=>{setRollno(e.target.value)}} ></input>
      <label>Enter Rollno</label>
    </div>
    <div className={styles.userbox}>
-     <input type="text" name="batch" onChange={(e)=>{setBatch(e.target.value)}} ></input>
+     <input type="text" name="batch" value={batch} onChange={(e)=>{setBatch(e.target.value)}} ></input>
      <label>Batch</label>
    </div>
    <div className={styles.userbox}>
-     <input type="text" name="section" onChange={(e)=>{setSection(e.target.value)}} ></input>
+     <input type="text" name="section" value={section} onChange={(e)=>{setSection(e.target.value)}} ></input>
      <label>Section</label>
    </div>
    <center>
@@ -115,7 +174,7 @@ const STUDENTLIST = () => {
                 <div className="col-2"><span className={styles.content}>{student.rollno}</span></div>
                 <div className="col-2"><span className={styles.content}>{student.batch}</span></div>
                 <div className="col-1"><span className={styles.content}>{student.section}</span></div>
-                <div className="col-1"><BUTTON title="EDIT" onclickhandler={()=>onedithandler(student)}/></div>
+                <div className="col-1"><BUTTON title="UPDATE" onclickhandler={()=>updatehandler(student)}/></div>
                 <div className="col-1"></div>
                 <div className="col-1"><BUTTON title = "REMOVE" onclickhandler={()=>onremovehandler(student)}/></div>
             </div>
